@@ -1,0 +1,137 @@
+version: "3.9"
+
+services:
+  # ===== NEXT.JS APP =====
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "${APP_PORT:-3000}:3000"
+    environment:
+      NODE_ENV: ${NODE_ENV:-development}
+      DATABASE_URL: postgresql://${DB_USER:-appuser}:${DB_PASS:-changeme}@db:5432/${DB_NAME:-ecommerce}
+      REDIS_URL: redis://:${REDIS_PASS:-redispass}@redis:6379
+      JWT_SECRET: ${JWT_SECRET:-change-me-in-production}
+      NEXTAUTH_SECRET: ${NEXTAUTH_SECRET:-change-me-in-production}
+      NEXTAUTH_URL: ${NEXTAUTH_URL:-http://localhost:3000}
+      XENDIT_API_KEY: ${XENDIT_API_KEY:-your-xendit-key}
+      XENDIT_WEBHOOK_KEY: ${XENDIT_WEBHOOK_KEY:-your-webhook-key}
+      SENDGRID_API_KEY: ${SENDGRID_API_KEY:-your-sendgrid-key}
+      RAJAONGKIR_API_KEY: ${RAJAONGKIR_API_KEY:-your-rajaongkir-key}
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - backend
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    labels:
+      - "com.example.app=ecommerce-umkm"
+      - "com.example.version=1.0.0"
+
+  # ===== POSTGRESQL DATABASE =====
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: ${DB_USER:-appuser}
+      POSTGRES_PASSWORD: ${DB_PASS:-changeme}
+      POSTGRES_DB: ${DB_NAME:-ecommerce}
+      POSTGRES_INITDB_ARGS: "-c shared_buffers=256MB -c max_connections=100"
+    ports:
+      - "${DB_PORT:-5432}:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./scripts/init-db.sql:/docker-entrypoint-initdb.d/01-init.sql
+    restart: unless-stopped
+    networks:
+      - backend
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-appuser} -d ${DB_NAME:-ecommerce}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    command:
+      - "postgres"
+      - "-c"
+      - "log_statement=all"
+      - "-c"
+      - "log_duration=on"
+
+  # ===== REDIS CACHE =====
+  redis:
+    image: redis:7-alpine
+    command: redis-server --requirepass ${REDIS_PASS:-redispass} --appendonly yes
+    ports:
+      - "${REDIS_PORT:-6379}:6379"
+    volumes:
+      - redisdata:/data
+    restart: unless-stopped
+    networks:
+      - backend
+    healthcheck:
+      test: ["CMD", "redis-cli", "-a", "${REDIS_PASS:-redispass}", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+  # ===== GRAFANA (Monitoring) =====
+  monitoring:
+    image: grafana/grafana:latest
+    ports:
+      - "${GRAFANA_PORT:-3001}:3000"
+    environment:
+      GF_SECURITY_ADMIN_USER: ${GRAFANA_USER:-admin}
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_PASS:-admin123}
+      GF_INSTALL_PLUGINS: "grafana-piechart-panel"
+    volumes:
+      - grafanadata:/var/lib/grafana
+      - ./monitoring/grafana/dashboards:/etc/grafana/provisioning/dashboards
+      - ./monitoring/grafana/datasources:/etc/grafana/provisioning/datasources
+    depends_on:
+      - db
+    restart: unless-stopped
+    networks:
+      - backend
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # ===== ADMINER (Database Management) =====
+  adminer:
+    image: adminer:latest
+    ports:
+      - "${ADMINER_PORT:-8080}:8080"
+    depends_on:
+      - db
+    restart: unless-stopped
+    networks:
+      - backend
+    environment:
+      ADMINER_DEFAULT_SERVER: db
+
+volumes:
+  pgdata:
+    driver: local
+  redisdata:
+    driver: local
+  grafanadata:
+    driver: local
+
+networks:
+  backend:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.20.0.0/16

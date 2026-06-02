@@ -1,0 +1,47 @@
+{
+  "name": "ecommerce-umkm",
+  "version": "1.0.0",
+  "description": "Platform ecommerce modern untuk UMKM dengan Next.js, Xendit, dan RajaOngkir",
+  "homepage": "https://github.com/hendrax5/sct",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/hendrax5/sct.git"
+  },
+  "license": "MIT",
+  "engines": {
+    "node": ">=20.0.0",
+    "npm": ">=10.0.0"
+  },
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint",
+    "type-check": "tsc --noEmit",
+    "test": "jest",
+    "migrate": "prisma migrate deploy",
+    "migrate:dev": "prisma migrate dev",
+    "generate": "prisma generate",
+    "db:studio": "prisma studio",
+    "format": "prettier --write \"**/*.{ts,tsx,md,json}\""
+  },
+  "dependencies": {
+    "next": "^15.0.0",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
+    "@prisma/client": "^5.8.0",
+    "bcryptjs": "^2.4.3",
+    "zod": "^3.22.4",
+    "axios": "^1.6.2",
+    "redis": "^4.6.13"
+  },
+  "devDependencies": {
+    "@types/node": "^20.10.6",
+    "@types/react": "^19.0.0",
+    "typescript": "^5.3.3",
+    "prisma": "^5.8.0",
+    "prettier": "^3.1.1",
+    "eslint": "^8.56.0",
+    "eslint-config-next": "^15.0.0"
+  }
+}
